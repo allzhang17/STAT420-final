@@ -1,0 +1,63 @@
+---
+title: "An Analysis of Test Scores Against Various Social and Economic Factors"
+author: "Allison Zhang, Kobe Dela Cruz, Nishant Balepur"
+date: "11/30/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+The purpose of our project is to effectively predict the test scores of high schoolers in 1986 based on a large number of predictor variables, some of which are gender, ethnicity, family income, etc. 
+
+
+Our ultimate goal for this project is to reason through the different predictor variables to find the model that can best predict high school test scores.
+
+
+## Dataset
+
+We will be using the College Distance dataset from the AER package that is found on this following site: https://rdrr.io/cran/AER/man/CollegeDistance.html
+
+The data was obtained by the Department of Education, and contains many different social and economic variables, including: gender, ethnicity, whether or not the mother/father went to college, if the family owns their home, county, unemployment rate, and more.
+
+We first load 'college_distance.csv' into R:
+
+```{r}
+library(readr)
+library(knitr)
+collegedistance = read_csv("CollegeDistance.csv")
+```
+This dataset has a total of 4739 observations of 15 variables (14 predictors and 1 response). The said variables are:
+
+- gender: a factor indicating gender
+- ethnicity: factor indicating ethnicity (African-American, Hispanic or other)
+- score: base year composite test score
+- fcollege: factor. Is the father a college graduate?
+- mcollege: factor. Is the mother a college graduate?
+- home: factor. Does the family own their home?
+- urban: factor. Is the school in an urban area?
+- unemp: country unemployment rate in 1980
+- wage: state hourly wage in manufacturing in 1980
+- distance: distance from 4-year college (in 10 miles)
+- tuition: average state 4-year college tuition (in 1000 USD)
+- education: number of years of education
+- income: factor. Is the family income above 25,000 USD per year?
+- region: factor indicating region (West or other)
+
+
+The dataset meets all of the set criteria for the project. Now lets look for missing values for our next step in data cleaning.
+```{r}
+summary(collegedistance)
+```
+
+
+## Data Cleaning
+
+## Method Exploration
+
+## Plotting
+
+## Model Results

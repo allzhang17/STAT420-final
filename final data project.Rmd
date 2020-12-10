@@ -32,6 +32,7 @@ library(faraway)
 library(lmtest)
 library(zoo)
 library(ggplot2)
+install.packages("reshape2")
 library(reshape2)
 collegedistance = read_csv("CollegeDistance.csv")
 ```
@@ -198,7 +199,6 @@ We can see from this model that there are **`r sum(vif(simple_add) >= 5)`** valu
 
 ## Method Exploration
 
-
 ```{r}
 full_score_model = lm( score ~ ., data = collegedistance)
 vif(full_score_model)
@@ -209,6 +209,33 @@ summary(full_score_model)$r.squared
 ```{r}
 full_int_mod = lm( score ~ .^2, data = collegedistance)
 summary(full_int_mod)$r.squared
+```
+
+To make it easier for us to norrow down our options when selecting a model, we will check our assumptions using a variety of functions/tests.
+```{r}
+get_bp = function(model, alpha = 0.01) {
+  decision = unname(bptest(model)$p.value < alpha)
+  ifelse(decision, "Reject", "Fail to Reject")
+}
+
+get_shapiro = function(model, alpha = 0.01) {
+  decision = unname(shapiro.test(resid(model))$p.value < alpha)
+  ifelse(decision, "Reject", "Fail to Reject")
+}
+
+get_rmse = function(observed, predicted) {
+  sqrt(mean((predicted - observed)^2))
+}
+
+evaluate = function(name, model, response_func = I, data = collegedistance) {
+  set.seed(21)
+  data.frame(Model = name,
+             adj_r2 = rsq(model, adj = TRUE),
+             bic = BIC(model),
+             coeff = length(coef(model)),
+             shapiro_dec = get_shapiro(model),
+             bp_dec = get_bp(model))
+}
 ```
 
 ## Plotting

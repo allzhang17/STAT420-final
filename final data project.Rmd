@@ -28,6 +28,8 @@ We first load 'college_distance.csv' into R:
 ```{r}
 library(readr)
 library(knitr)
+library(faraway)
+library(lmtest)
 collegedistance = read_csv("CollegeDistance.csv")
 ```
 This dataset has a total of 4739 observations of 15 variables (14 predictors and 1 response). The said variables are:
@@ -55,6 +57,14 @@ summary(collegedistance)
 ```
 ```{r}
 full_score_model = lm( score ~ ., data = collegedistance)
+vif(full_score_model)
+```
+```{r}
+summary(full_score_model)$r.squared
+```
+```{r}
+full_int_mod = lm( score ~ .^2, data = collegedistance)
+summary(full_int_mod)$r.squared
 ```
 
 

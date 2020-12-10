@@ -23,13 +23,14 @@ We will be using the College Distance dataset from the AER package that is found
 
 The data was obtained by the Department of Education, and contains many different social and economic variables, including: gender, ethnicity, whether or not the mother/father went to college, if the family owns their home, county, unemployment rate, and more.
 
-We first load 'college_distance.csv' into R:
+We first load 'college_distance.csv' into R along with some required packages:
 
 ```{r}
 library(readr)
 library(knitr)
 library(faraway)
 library(lmtest)
+library(zoo)
 collegedistance = read_csv("CollegeDistance.csv")
 ```
 This dataset has a total of 4739 observations of 15 variables (14 predictors and 1 response). The said variables are:
@@ -51,10 +52,23 @@ This dataset has a total of 4739 observations of 15 variables (14 predictors and
 
 
 The dataset meets all of the set criteria for the project. Now lets look for missing values for our next step in data cleaning.
+
+## Data Cleaning
+
+We received a warning message when loading the data that there was an unnamed column. Taking a look, we saw that R created another x-coordinate column. We will get rid of that.
 ```{r}
-collegedistance[,-1]
+collegedistance[ , -1]
 summary(collegedistance)
 ```
+Next, we will see if there are any missing values within our dataset.
+```{r}
+sum(is.na(collegedistance))
+```
+Great! We see that there are no missing values in our dataset, so no additional work needs to be done there. 
+
+
+## Method Exploration
+
 ```{r}
 full_score_model = lm( score ~ ., data = collegedistance)
 vif(full_score_model)
@@ -66,11 +80,6 @@ summary(full_score_model)$r.squared
 full_int_mod = lm( score ~ .^2, data = collegedistance)
 summary(full_int_mod)$r.squared
 ```
-
-
-## Data Cleaning
-
-## Method Exploration
 
 ## Plotting
 

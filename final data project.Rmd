@@ -25,30 +25,32 @@ The data was obtained by the Department of Education, and contains many differen
 
 We first load 'college_distance.csv' into R along with some required packages:
 
-```{r}
+```{r warning = FALSE, echo = TRUE, results = "hide"}
 library(readr)
 library(knitr)
 library(faraway)
 library(lmtest)
 library(zoo)
+library(ggplot2)
+library(reshape2)
 collegedistance = read_csv("CollegeDistance.csv")
 ```
 This dataset has a total of 4739 observations of 15 variables (14 predictors and 1 response). The said variables are:
 
-- gender: a factor indicating gender
-- ethnicity: factor indicating ethnicity (African-American, Hispanic or other)
-- score: base year composite test score
-- fcollege: factor. Is the father a college graduate?
-- mcollege: factor. Is the mother a college graduate?
-- home: factor. Does the family own their home?
-- urban: factor. Is the school in an urban area?
-- unemp: country unemployment rate in 1980
-- wage: state hourly wage in manufacturing in 1980
-- distance: distance from 4-year college (in 10 miles)
-- tuition: average state 4-year college tuition (in 1000 USD)
-- education: number of years of education
-- income: factor. Is the family income above 25,000 USD per year?
-- region: factor indicating region (West or other)
+- `gender`: a factor indicating gender
+- `ethnicity`: factor indicating ethnicity (African-American, Hispanic or other)
+- `score`: base year composite test score
+- `fcollege`: factor. Is the father a college graduate?
+- `mcollege`: factor. Is the mother a college graduate?
+- `home`: factor. Does the family own their home?
+- `urban`: factor. Is the school in an urban area?
+- `unemp`: country unemployment rate in 1980
+- `wage`: state hourly wage in manufacturing in 1980
+- `distance`: distance from 4-year college (in 10 miles)
+- `tuition`: average state 4-year college tuition (in 1000 USD)
+- `education`: number of years of education
+- `income`: factor. Is the family income above 25,000 USD per year?
+- `region`: factor indicating region (West or other)
 
 
 The dataset meets all of the set criteria for the project. Now lets look for missing values for our next step in data cleaning.
@@ -57,8 +59,8 @@ The dataset meets all of the set criteria for the project. Now lets look for mis
 
 We received a warning message when loading the data that there was an unnamed column. Taking a look, we saw that R created another x-coordinate column. We will get rid of that.
 ```{r}
-collegedistance[ , -1]
-summary(collegedistance)
+collegedistance = collegedistance[ , -1]
+head(collegedistance)
 ```
 Next, we will see if there are any missing values within our dataset.
 ```{r}
@@ -66,8 +68,136 @@ sum(is.na(collegedistance))
 ```
 Great! We see that there are no missing values in our dataset, so no additional work needs to be done there. 
 
+<hr />
+
+We also notice that many of our variables are factor variables, so we need to convert those to binary values. The dependent variables will be converted as follows:
+
+- `ethnicity`: converted into two variables, `hispanic` and `afam`. A value of 1 means the student is Hispanic or African-American, respectively
+- `gender`: 1 for male, 0 for female
+- `fcollege`: 1 for yes, 0 for no
+- `mcollege`: 1 for yes, 0 for no
+- `home`: 1 for yes, 0 for no
+- `urban`: 1 for yes, 0 for no
+- `income`: 1 for high, 0 for low
+- `region`: 1 for West, 0 for other
+
+```{r}
+
+# convert the ethnicity label and remove the old one
+collegedistance$hispanic = 1 * (collegedistance$ethnicity == "hispanic")
+collegedistance$afam = 1 * (collegedistance$ethnicity == "afam")
+collegedistance = collegedistance[-1 * which(names(collegedistance) == "ethnicity")]
+
+# convert the rest of the labels with automation
+convert_labels = c(c("fcollege", "yes"), c("mcollege", "yes"), c("home", "yes"),
+                   c("urban", "yes"), c("income", "high"), c("region", "West"),
+                   c("gender", "male"))
+
+# loop through each label
+for (label_index in seq(1, length(convert_labels), 2)) {
+  
+  # get the column name and positive label name
+  col_name = convert_labels[label_index]
+  positive_label = convert_labels[label_index + 1]
+
+  # convert the label appropriately
+  collegedistance[col_name] = 1 * (collegedistance[col_name] == positive_label)
+}
+
+```
+
+Now let's take a look at the data with our adjusted variables
+
+```{r}
+head(collegedistance)
+```
+
+It appears that none of the other variables need to be changed 
+
+<hr />
+
+Before we start creating our models, we'll take a look at our variables to ensure that there is no correlation affecting our model
+
+To do this, we'll need a correlation matrix
+
+```{r warning = FALSE}
+# get the correlation matrix (remove score)
+college_cor = round(cor(collegedistance[-1 * which(names(collegedistance) == "score")]), 2)
+
+# remove the NA values
+college_cor[which(is.na(college_cor))] = 0
+
+# summary of the correlation
+head(college_cor)
+```
+
+This table is a little difficult to analyze, so we'll convert it to a visual heatmap
+
+```{r include = FALSE}
+
+# code reference: http://www.sthda.com/english/wiki/ggplot2-quick-correlation-matrix-heatmap-r-software-and-data-visualization
+
+# function to reorder the corelation matrix
+reorder_cormat = function(cormat){
+  # Use correlation between variables as distance
+  dd <- as.dist((1-cormat)/2)
+  hc <- hclust(dd)
+  cormat <- cormat[hc$order, hc$order]
+}
+
+# Get upper triangle of the correlation matrix
+get_lower_tri = function(cormat){
+    cormat[upper.tri(cormat)] <- NA
+    return(cormat)
+}
+
+# Get upper triangle of the correlation matrix
+get_upper_tri <- function(cormat){
+    cormat[lower.tri(cormat)]<- NA
+    return(cormat)
+}
+
+# use our helper functions to format the correlation matrix
+melted_cormat = melt(get_upper_tri(reorder_cormat(college_cor)), na.rm = TRUE)
+
+# create the heat map
+ggheatmap = ggplot(melted_cormat, aes(Var2, Var1, fill = value)) +
+            ggtitle("Correlation Matrix Heatmap") +
+            xlab("Variable 1") + ylab("Variable 2") +
+            geom_tile(color = "white") +
+            scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                                 midpoint = 0, limit = c(-1,1), space = "Lab", 
+                                 name="Pearson\nCorrelation") +
+            theme_minimal() + 
+            theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+                                             size = 18, hjust = 1),
+                  axis.text.y = element_text(size = 18),
+                  axis.title = element_text(size = 25),
+                  plot.title = element_text(size = 30, hjust = 0.5),
+                  legend.text = element_text(size = 16),
+                  legend.title = element_text(size = 20),
+                  legend.key.width = unit(1, "cm"),
+                  legend.key.height = unit(2.5, "cm")) +
+            coord_fixed()
+            
+```
+
+```{r fig.height = 10, fig.width = 15}
+# print our heatmap (code hidden above)
+ggheatmap
+```
+
+From the above heatmap, we see that there are only a few variables that could be problematic. To further validate our findings, we'll explore the variance inflation factors for a simple additive model
+
+```{r warning = FALSE}
+simple_add = lm(score ~ ., data = collegedistance)
+vif(simple_add)
+```
+
+We can see from this model that there are **`r sum(vif(simple_add) >= 5)`** values greater than 5, so there appears to be no collinearity between our dependent variables
 
 ## Method Exploration
+
 
 ```{r}
 full_score_model = lm( score ~ ., data = collegedistance)

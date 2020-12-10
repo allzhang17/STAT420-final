@@ -50,7 +50,11 @@ This dataset has a total of 4739 observations of 15 variables (14 predictors and
 
 The dataset meets all of the set criteria for the project. Now lets look for missing values for our next step in data cleaning.
 ```{r}
+collegedistance[,-1]
 summary(collegedistance)
+```
+```{r}
+full_score_model = lm( score ~ ., data = collegedistance)
 ```
 
 

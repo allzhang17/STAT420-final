@@ -124,7 +124,7 @@ Before we start creating our models, we'll take a look at our variables to ensur
 To do this, we'll need a correlation matrix
 
 ```{r warning = FALSE}
-# get the correlation matrix (remove score)
+# get the correlation matrix
 college_cor = round(cor(collegedistance), 2)
 
 # remove the NA values
@@ -202,11 +202,6 @@ We can see from this model that there are **`r sum(vif(simple_add) >= 5)`** valu
 
 ## Method Exploration
 
-```{r}
-full_int_mod = lm( score ~ .^2, data = collegedistance)
-summary(full_int_mod)$r.squared
-```
-
 To make it easier for us to norrow down our options when selecting a model, we will check our assumptions using a variety of functions/tests.
 ```{r}
 get_bp = function(model, alpha = 0.01) {
@@ -228,6 +223,7 @@ evaluate = function(name, model, response_func = I, data = collegedistance) {
   data.frame(Model = name,
              rmse = get_rmse(model),
              adj_r2 = rsq(model, adj = TRUE),
+             aic = AIC(model),
              bic = BIC(model),
              coeff = length(coef(model)),
              shapiro_dec = get_shapiro(model),
@@ -261,7 +257,37 @@ anova(full_score_model, full_int_mod)
 ```
 The p-value is extremely low (0.0003279), so between the two, we choose the interaction model to begin narrowing down our predictors.
 
+Also, we can see that the interaction model had a smaller AIC than BIC, so we will move forward with using backwards AIC to search for and narrow down parameters.
+
 ## Model Building + Testing
+
+We first begin by using backwards AIC to do a backwards parameter search.
+```{r}
+full_int_mod = lm(score ~ . ^ 2, data = collegedistance)
+distance_aic = step(full_int_mod, direction = "backward", trace = 0)
+coef(distance_aic)
+```
+```{r}
+distance_larger = lm(score ~ .^2 + I(gender^2) + I(fcollege^2) + I(mcollege^2) + I(home^2) + I(urban^2) + I(unemp^2) + I(wage^2) + I(distance^2) + I(tuition^2) + I(education^2) + I(hispanic^2) + I(afam^2), data = collegedistance)
+distance_aic2 = step(distance_larger, direction = "backward", trace = 0)
+coef(distance_aic2)
+```
+```{r}
+length(coef(distance_aic))
+```
+```{r}
+length(coef(distance_aic2))
+```
+```{r}
+evaluate("All Interactions", distance_aic)
+```
+```{r}
+evaluate("Some interactions", distance_aic2)
+```
+```{r}
+summary(distance_aic2)
+```
+
 
 ## Model Results
 

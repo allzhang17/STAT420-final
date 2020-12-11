@@ -34,6 +34,8 @@ library(zoo)
 library(ggplot2)
 install.packages("reshape2")
 library(reshape2)
+install.packages("rsq")
+library(rsq)
 collegedistance = read_csv("CollegeDistance.csv")
 ```
 This dataset has a total of 4739 observations of 15 variables (14 predictors and 1 response). The said variables are:
@@ -123,7 +125,7 @@ To do this, we'll need a correlation matrix
 
 ```{r warning = FALSE}
 # get the correlation matrix (remove score)
-college_cor = round(cor(collegedistance[-1 * which(names(collegedistance) == "score")]), 2)
+college_cor = round(cor(collegedistance), 2)
 
 # remove the NA values
 college_cor[which(is.na(college_cor))] = 0
@@ -197,15 +199,9 @@ vif(simple_add)
 
 We can see from this model that there are **`r sum(vif(simple_add) >= 5)`** values greater than 5, so there appears to be no collinearity between our dependent variables
 
+
 ## Method Exploration
 
-```{r}
-full_score_model = lm( score ~ ., data = collegedistance)
-vif(full_score_model)
-```
-```{r}
-summary(full_score_model)$r.squared
-```
 ```{r}
 full_int_mod = lm( score ~ .^2, data = collegedistance)
 summary(full_int_mod)$r.squared
@@ -223,13 +219,14 @@ get_shapiro = function(model, alpha = 0.01) {
   ifelse(decision, "Reject", "Fail to Reject")
 }
 
-get_rmse = function(observed, predicted) {
-  sqrt(mean((predicted - observed)^2))
+get_rmse = function(model) {
+  sqrt(mean((resid(model) / (1 - hatvalues(model))) ^ 2))
 }
 
 evaluate = function(name, model, response_func = I, data = collegedistance) {
   set.seed(21)
   data.frame(Model = name,
+             rmse = get_rmse(model),
              adj_r2 = rsq(model, adj = TRUE),
              bic = BIC(model),
              coeff = length(coef(model)),
@@ -238,8 +235,36 @@ evaluate = function(name, model, response_func = I, data = collegedistance) {
 }
 ```
 
-## Plotting
+Next, let's start creating some basic models.
+```{r}
+# Start with a model with all predictors.
+full_score_model = lm(score ~ ., data = collegedistance)
+full_score_eval = evaluate("All Additive Model", full_score_model)
+full_score_eval
+```
+Now that we have a baseline quality criterion, let's compare this to a model with the predictors chosen from the heat map. 
+```{r}
+# Comparing with a model using selected predictors.
+smaller_add_model = lm(score ~ education + fcollege + mcollege + wage + tuition + gender + home + income, data = collegedistance)
+smaller_add_eval = evaluate("Smaller Add Model", smaller_add_model)
+smaller_add_eval
+```
+We see that the additive model with chosen predictors has a lower adjusted $r^2$ and a higher BIC. Let's try comparing it to the interaction model.
+```{r}
+full_int_mod = lm(score ~ .^2, data = collegedistance)
+full_int_eval = evaluate("All Interaction Model", full_int_mod)
+full_int_eval
+```
+We see that the interaction model has a higher adjusted $r^2$, let's use an ANOVA $F$-test to choose between the All Additive Model and All Interaction Model.
+```{r}
+anova(full_score_model, full_int_mod)
+```
+The p-value is extremely low (0.0003279), so between the two, we choose the interaction model to begin narrowing down our predictors.
+
+## Model Building + Testing
 
 ## Model Results
 
 ## Discussion
+
+## Appendix

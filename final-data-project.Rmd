@@ -1,6 +1,5 @@
 ---
 title: "An Analysis of Test Scores Against Various Social and Economic Factors"
-author: "Allison Zhang, Kobe Dela Cruz, Nishant Balepur"
 date: "11/30/2020"
 output: html_document
 ---
@@ -11,11 +10,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Introduction
 
-The purpose of our project is to effectively predict the test scores of high schoolers in 1986 based on a large number of predictor variables, some of which are gender, ethnicity, family income, etc. 
+Our ultimate goal for this project is to reason through the different predictor variables to find the model that can best predict high school test scores. We found this data relevant and interesting since it relates variables that all of us are very familiar with (test scores, familial factors, etc.) 
 
-
-Our ultimate goal for this project is to reason through the different predictor variables to find the model that can best predict high school test scores.
-
+The purpose of our final model is to effectively predict the test scores of high schoolers in 1986 based on a large number of predictor variables, some of which are gender, ethnicity, family income, etc.
 
 ## Dataset
 
@@ -670,7 +667,7 @@ final_shapiro = get_shapiro(final_model)
 print(final_shapiro)
 ```
 
-This test gives us a test statistic of **`r final_shapiro$stat`** and thus a p-value of **`r final_shapiro$pvalue`**, meaning that we **reject** $H_0$. Hence, this assumption is violated
+This test gives us a test statistic of **`r final_shapiro$stat`** and thus a p-value of **`r final_shapiro$pvalue`**, meaning that we **reject** $H_0$. Hence, this assumption is violated. 
 
 <br />
 
@@ -681,8 +678,15 @@ final_unusual = getUnusualPoints(final_model)
 print(final_unusual)
 ```
 
-Our data has **`r final_unusual$leverage`** points of high leverage, **`r final_unusual$residual`** points of with large residual, and **`r final_unusual$infleuntial`** influential points. Even with intensive data cleaning, these results prove our suspicions that the data selected is highly volatile
+Our data has **`r final_unusual$leverage`** points of high leverage, **`r final_unusual$residual`** points of with large residual, and **`r final_unusual$infleuntial`** influential points. Even with intensive data cleaning, these results prove our suspicions that the data selected is highly volatile.
 
 ## Discussion
+
+### Process of choosing "Best" Model
+We began with a dataset of 4739 observations of 15 variables. We first cleaned our data and checked for any missing values. Fortunately, we did not have any and moved on to creating additional factor variables. Then we took a look at correlation between our predictors and observation variables in order to narrow down our method of choice in the 'Method Exploration' section. We decided upon using backwards AIC as our method of choice to narrow down predictors and successfully ended up with a promising model (a decision enforced by our ANOVA testing). To further improve upon our promising model, we applied a variety of response and predictor transformations and removed unusal points, ultimately giving us our "best" model.
+
+### Practicality of "Best" Model
+After going through the proccesses of choosing a "best" model, the model that performed the best was the polished 'test_model3', which modeled score against a number of quadratic, interaction, and additive predictors chosen using backwards AIC. However, even after utilizing backwards AIC, the model still had a relatively low $R^2$ value. This was significantly improved upon by removing the majority of any unusual points. With the final polished 'test_model3', the relatively low cross validated $RMSE$ and high adjusted $R^2$ suggests that the model does an excellent job at predicting test scores. Ultimately, we believe that we succeeded in building a model that was accurate in predicting high schoolers' test scores based off of a number of carefully chosen predictor variables. 
+
 
 ## Appendix

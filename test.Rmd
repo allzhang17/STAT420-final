@@ -36,7 +36,7 @@ library(ggplot2)
 library(reshape2)
 #install.packages("rsq")
 library(rsq)
-collegedistance = read_csv("CollegeDistance.csv")
+collegedistance = read.csv("CollegeDistance.csv")
 ```
 This dataset has a total of 4739 observations of 15 variables (14 predictors and 1 response). The said variables are:
 
@@ -261,12 +261,16 @@ buildScatterPlot = function(dep_label, ind_label, color1, color2 = color, intera
        main = paste(dep_label, " vs ", ind_label),
        col = ifelse(interaction, color1, color2),
        pch = 20,
-       cex = 1)
+       cex = 1,
+       cex.lab = 2,
+       cex.axis = 2,
+       cex.main = 2)
 }
 ```
 
+Now we'll make the plots for our numeric variables
 
-```{r}
+```{r fig.height = 10, fig.width = 15}
 par(mfrow = c(2, 2))
 buildScatterPlot("Score", "Wage", "dodgerblue")
 buildScatterPlot("Score", "Unemp", "darkorange")
@@ -274,114 +278,83 @@ buildScatterPlot("Score", "Distance", "firebrick")
 buildScatterPlot("Score", "Tuition", "mediumpurple")
 ```
 
+There appears to be no transformations needed, and unforunately our data looks fairly random, possibly indicating that there is no strong trend between our variables
+
+Before we give up, we will repeat the process for our interaction variables
+
+```{r}
+createInteractionPlots = function(interaction) {
+    par(mfrow = c(2, 2))
+    buildScatterPlot("Score", "Wage", "dodgerblue" , "cadetblue1",
+                     unlist(collegedistance[interaction]))
+    buildScatterPlot("Score", "Unemp", "seagreen1", "palegreen4",
+                     unlist(collegedistance[interaction]))
+    buildScatterPlot("Score", "Distance", "firebrick", "tomato",
+                     unlist(collegedistance[interaction]))
+    buildScatterPlot("Score", "Tuition", "mediumpurple", "orchid2",
+                     unlist(collegedistance[interaction]))
+}
+```
 
 
+#### Gender
+
+```{r fig.height = 10, fig.width = 15}
+createInteractionPlots("gender")
+```
+
+#### Father Went to College?
+
+```{r fig.height = 10, fig.width = 15}
+createInteractionPlots("fcollege")
+```
+
+#### Mother Went to College?
+
+```{r fig.height = 10, fig.width = 15}
+createInteractionPlots("mcollege")
+```
+
+#### Home
+
+```{r fig.height = 10, fig.width = 15}
+createInteractionPlots("home")
+```
+
+#### Urban
+
+```{r fig.height = 10, fig.width = 15}
+createInteractionPlots("urban")
+```
+
+#### Income
+
+```{r fig.height = 10, fig.width = 15}
+createInteractionPlots("income")
+```
+
+#### Region
+
+```{r fig.height = 10, fig.width = 15}
+createInteractionPlots("region")
+```
+
+#### Hispanic
+
+```{r fig.height = 10, fig.width = 15}
+createInteractionPlots("hispanic")
+```
+
+#### African American
+
+```{r fig.height = 10, fig.width = 15}
+createInteractionPlots("afam")
+```
+
+Looking at all of the above charts, we notice that there is no strong interaction trend when only looking at the combination of two variables. Hence, it's difficult for us to visually extract trends, and must now rely on statistcal metrics on how to continue
 
 <hr />
 
-To make it easier for us to norrow down our options when selecting a model, we will check our assumptions using a variety of functions/tests.
-
-```{r}
-get_bp = function(model, alpha = 0.01) {
-  decision = unname(bptest(model)$p.value < alpha)
-  ifelse(decision, "Reject", "Fail to Reject")
-}
-
-get_shapiro = function(model, alpha = 0.01) {
-  decision = unname(shapiro.test(resid(model))$p.value < alpha)
-  ifelse(decision, "Reject", "Fail to Reject")
-}
-
-get_rmse = function(model) {
-  sqrt(mean((resid(model) / (1 - hatvalues(model))) ^ 2))
-}
-
-evaluate = function(name, model, response_func = I, data = collegedistance) {
-  set.seed(21)
-  data.frame(Model = name,
-             rmse = get_rmse(model),
-             adj_r2 = rsq(model, adj = TRUE),
-             aic = AIC(model),
-             bic = BIC(model),
-             coeff = length(coef(model)),
-             shapiro_dec = get_shapiro(model),
-             bp_dec = get_bp(model))
-}
-```
-
-Next, let's start creating some basic models.
-```{r}
-# Start with a model with all predictors.
-full_score_model = lm(score ~ ., data = collegedistance)
-full_score_eval = evaluate("All Additive Model", full_score_model)
-full_score_eval
-```
-Now that we have a baseline quality criterion, let's compare this to a model with the predictors chosen from the heat map. 
-```{r}
-# Comparing with a model using selected predictors.
-smaller_add_model = lm(score ~ education + fcollege + mcollege + wage + tuition + gender + home + income, data = collegedistance)
-smaller_add_eval = evaluate("Smaller Add Model", smaller_add_model)
-smaller_add_eval
-```
-We see that the additive model with chosen predictors has a lower adjusted $r^2$ and a higher BIC. Let's try comparing it to the interaction model.
-```{r}
-full_int_mod = lm(score ~ .^2, data = collegedistance)
-full_int_eval = evaluate("All Interaction Model", full_int_mod)
-full_int_eval
-```
-We see that the interaction model has a higher adjusted $r^2$, let's use an ANOVA $F$-test to choose between the All Additive Model and All Interaction Model.
-```{r}
-anova(full_score_model, full_int_mod)
-```
-The p-value is extremely low (0.0003279), so between the two, we choose the interaction model to begin narrowing down our predictors.
-
-Also, we can see that the interaction model had a smaller AIC than BIC, so we will move forward with using backwards AIC to search for and narrow down parameters.
-
-## Model Building + Testing
-
-We first begin by using backwards AIC to do a backwards parameter search.
-```{r eval = FALSE}
-full_int_mod = lm(score ~ . ^ 2, data = collegedistance)
-distance_aic = step(full_int_mod, direction = "backward", trace = 0)
-coef(distance_aic)
-```
-```{r eval = FALSE}
-distance_larger = lm(score ~ .^2 + I(gender^2) + I(fcollege^2) + I(mcollege^2) + I(home^2) + I(urban^2) + I(unemp^2) + I(wage^2) + I(distance^2) + I(tuition^2) + I(education^2) + I(hispanic^2) + I(afam^2), data = collegedistance)
-distance_aic2 = step(distance_larger, direction = "backward", trace = 0)
-coef(distance_aic2)
-```
-```{r eval = FALSE}
-length(coef(distance_aic))
-```
-```{r eval = FALSE}
-length(coef(distance_aic2))
-```
-```{r eval = FALSE}
-evaluate("All Interactions", distance_aic)
-```
-```{r eval = FALSE}
-evaluate("Some interactions", distance_aic2)
-```
-```{r eval = FALSE}
-summary(distance_aic2)
-```
-
-
-```{r eval = FALSE}
-# ungodly model
-test_model3 = lm(score^0.75 ~ gender + fcollege + fcollege:mcollege + home + urban + wage + distance + I(distance^(0.25)) + tuition + education + income + hispanic + afam + I(distance^2) + I(tuition^2) + I(education^2) + gender:home + gender:wage + gender:education + gender:hispanic + gender:afam + fcollege:income + mcollege:income + home:urban + home:unemp + home:distance + unemp:distance + unemp:hispanic + wage:hispanic + wage:afam + distance:hispanic + distance:afam + tuition:education + income:hispanic + I(tuition^3) + log(tuition) + I(education^3)+ log(education) + I(tuition^0.25) + I(education^0.25) + I(wage^2) + gender:I(wage^2) + gender:I(log(wage)) + hispanic:I(wage^2) + hispanic:I(log(wage)) + home:I(unemp^2) + home:I(unemp^0.25) + home:I(log(unemp)) + home:I(distance^2) + home:I(distance^0.25) +  unemp:I(distance^2) + unemp:I(distance^0.25) + hispanic:I(distance^2) + hispanic:I(distance^0.25) + afam:I(distance^2) + afam:I(distance^0.25) + region, data = collegedistance)
-
-summary(test_model3)$r.squared
-summary(test_model3)$adj.r.squared
-```
-
-```{r eval=FALSE}
-summary(test_model3)
-```
-
-```{r}
-#wtf_model = lm(score ~ . - region + 0, data = collegedistance)
-```
 
 
 ## Model Results

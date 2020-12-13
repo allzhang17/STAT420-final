@@ -36,7 +36,7 @@ library(ggplot2)
 library(reshape2)
 #install.packages("rsq")
 library(rsq)
-collegedistance = read_csv("CollegeDistance.csv")
+collegedistance = read.csv("CollegeDistance.csv")
 ```
 This dataset has a total of 4739 observations of 15 variables (14 predictors and 1 response). The said variables are:
 
@@ -60,6 +60,8 @@ The dataset meets all of the set criteria for the project. Now lets look for mis
 
 ## Data Cleaning
 
+### Loading in the Dataset
+
 We received a warning message when loading the data that there was an unnamed column. Taking a look, we saw that R created another x-coordinate column. We will get rid of that.
 ```{r}
 collegedistance = collegedistance[ , -1]
@@ -71,7 +73,7 @@ sum(is.na(collegedistance))
 ```
 Great! We see that there are no missing values in our dataset, so no additional work needs to be done there. 
 
-<hr />
+### Converting Factor Variables
 
 We also notice that many of our variables are factor variables, so we need to convert those to binary values. The dependent variables will be converted as follows:
 
@@ -117,7 +119,7 @@ head(collegedistance)
 
 It appears that none of the other variables need to be changed 
 
-<hr />
+### Identifying Correlation
 
 Before we start creating our models, we'll take a look at our variables to ensure that there is no correlation affecting our model
 
@@ -200,6 +202,8 @@ vif(simple_add)
 
 We can see from this model that there are **`r sum(vif(simple_add) >= 5)`** values greater than 5, so there appears to be no collinearity between our dependent variables
 
+### Variable Intuition
+
 We will now do a brief summary of all of our variables, just to see if there are any more than we can remove
 
 ```{r}
@@ -261,12 +265,16 @@ buildScatterPlot = function(dep_label, ind_label, color1, color2 = color, intera
        main = paste(dep_label, " vs ", ind_label),
        col = ifelse(interaction, color1, color2),
        pch = 20,
-       cex = 1)
+       cex = 1,
+       cex.lab = 2,
+       cex.axis = 2,
+       cex.main = 2)
 }
 ```
 
+Now we'll make the plots for our numeric variables
 
-```{r}
+```{r fig.height = 10, fig.width = 15}
 par(mfrow = c(2, 2))
 buildScatterPlot("Score", "Wage", "dodgerblue")
 buildScatterPlot("Score", "Unemp", "darkorange")
@@ -274,7 +282,97 @@ buildScatterPlot("Score", "Distance", "firebrick")
 buildScatterPlot("Score", "Tuition", "mediumpurple")
 ```
 
+There appears to be no transformations needed, and unforunately our data looks fairly random, possibly indicating that there is no strong trend between our variables
 
+Before we give up, we will repeat the process for our interaction variables. The function `createInteractionPlots()` will save us from needing to repeat our code
+
+```{r}
+createInteractionPlots = function(interaction) {
+    par(mfrow = c(2, 2))
+    buildScatterPlot("Score", "Wage", "dodgerblue" , "cadetblue1",
+                     unlist(collegedistance[interaction]))
+    buildScatterPlot("Score", "Unemp", "seagreen1", "palegreen4",
+                     unlist(collegedistance[interaction]))
+    buildScatterPlot("Score", "Distance", "firebrick", "tomato",
+                     unlist(collegedistance[interaction]))
+    buildScatterPlot("Score", "Tuition", "mediumpurple", "orchid2",
+                     unlist(collegedistance[interaction]))
+}
+```
+
+<br />
+
+#### Gender
+
+```{r fig.height = 10, fig.width = 15}
+createInteractionPlots("gender")
+```
+
+<br />
+
+#### Father Went to College?
+
+```{r fig.height = 10, fig.width = 15}
+createInteractionPlots("fcollege")
+```
+
+<br />
+
+#### Mother Went to College?
+
+```{r fig.height = 10, fig.width = 15}
+createInteractionPlots("mcollege")
+```
+
+<br />
+
+#### Home
+
+```{r fig.height = 10, fig.width = 15}
+createInteractionPlots("home")
+```
+
+<br />
+
+#### Urban
+
+```{r fig.height = 10, fig.width = 15}
+createInteractionPlots("urban")
+```
+
+<br />
+
+#### Income
+
+```{r fig.height = 10, fig.width = 15}
+createInteractionPlots("income")
+```
+
+<br />
+
+#### Region
+
+```{r fig.height = 10, fig.width = 15}
+createInteractionPlots("region")
+```
+
+<br />
+
+#### Hispanic
+
+```{r fig.height = 10, fig.width = 15}
+createInteractionPlots("hispanic")
+```
+
+<br />
+
+#### African American
+
+```{r fig.height = 10, fig.width = 15}
+createInteractionPlots("afam")
+```
+
+Looking at all of the above charts, we notice that there is no strong interaction trend when only looking at the combination of two variables. Hence, it's difficult for us to visually extract trends, and we must now rely on statistcal metrics to continue
 
 
 <hr />
@@ -282,20 +380,28 @@ buildScatterPlot("Score", "Tuition", "mediumpurple")
 To make it easier for us to norrow down our options when selecting a model, we will check our assumptions using a variety of functions/tests.
 
 ```{r}
+# performs the Breusch-Pagan test
 get_bp = function(model, alpha = 0.01) {
-  decision = unname(bptest(model)$p.value < alpha)
-  ifelse(decision, "Reject", "Fail to Reject")
+  bptest_res = bptest(model)
+  decision = bptest_res$p.value < alpha
+  return(list(decision = ifelse(decision, "Reject", "Fail To Reject"),
+              stat = bptest_res$statistic, pvalue = bptest_res$p.value))
 }
 
+# performs the Shapiro-Wilk test
 get_shapiro = function(model, alpha = 0.01) {
-  decision = unname(shapiro.test(resid(model))$p.value < alpha)
-  ifelse(decision, "Reject", "Fail to Reject")
+  shapiro_res = shapiro.test(resid(model))
+  decision = shapiro_res$p.value < alpha
+  return(list(decision = ifelse(decision, "Reject", "Fail to Reject"),
+              stat = shapiro_res$statistic, pvalue = shapiro_res$p.value))
 }
 
+# finds the RMSE of our model
 get_rmse = function(model) {
   sqrt(mean((resid(model) / (1 - hatvalues(model))) ^ 2))
 }
 
+# combines the above helper methods into a readable format
 evaluate = function(name, model, response_func = I, data = collegedistance) {
   set.seed(21)
   data.frame(Model = name,
@@ -304,8 +410,8 @@ evaluate = function(name, model, response_func = I, data = collegedistance) {
              aic = AIC(model),
              bic = BIC(model),
              coeff = length(coef(model)),
-             shapiro_dec = get_shapiro(model),
-             bp_dec = get_bp(model))
+             shapiro_dec = get_shapiro(model)$decision,
+             bp_dec = get_bp(model)$decision)
 }
 ```
 
@@ -379,12 +485,178 @@ summary(test_model3)$adj.r.squared
 summary(test_model3)
 ```
 
+### Finalizing the Model
+
+### Analyzing Unusual Points
+
+Before we finalize our model, we also need to make sure that we remove all of the unusual points in our data set
+
+The function `getUnsualPoints()` below will help us streamline the process of finding these points
+
 ```{r}
-#wtf_model = lm(score ~ . - region + 0, data = collegedistance)
+# finds the unusual points (leverage, residual, influential) of a certain model
+getUnusualPoints = function(model) {
+  # calculate leverage
+  num_high_leverage = sum(hatvalues(model) > 2 * mean(hatvalues(model)))
+  
+  # calculate large residuals
+  num_large_residual = sum(abs(rstandard(model)) > 2)
+  
+  # calculate influential
+  cooks_dist = cooks.distance(model)
+  num_influential = sum(cooks_dist > 4 / length(cooks_dist))
+  
+  # return the values
+  return(list(leverage = num_high_leverage,
+              residual = num_large_residual,
+              influential = num_influential))
+}
 ```
 
+Let's run the above function with our current best model
+
+```{r}
+#TODO: Change to current best model
+unusual_point_data = getUnusualPoints(test_model3)
+print(unusual_point_data)
+```
+
+We find that we have **`r unusual_point_data$influential`** unusual points, so we will remove them and create our final model
+
+We will repeat this process until the unusual points are minimized to a certain value, in our case 5
+
+```{r}
+
+final_model = distance_aic2
+collegedistance_cleaned = collegedistance
+
+while(nrow(collegedistance_cleaned) > 2000) {
+  
+  # calculate influence indexes
+  infl_indexes = which(cooks.distance(final_model) > 4 /
+                         length(cooks.distance((final_model))))
+  
+  # calculate residual indexes
+  resid_indexes = which(abs(rstandard(final_model)) > 2)
+  
+  # get all unique subset indexes
+  subset_indexes = unique(c(infl_indexes, lev_indexes, resid_indexes))
+  
+  if (nrow(collegedistance_cleaned) - length(subset_indexes) < 2000) {
+    break
+  }
+  
+  collegedistance_cleaned = collegedistance_cleaned[-1 * subset_indexes,]
+  
+  
+  
+  final_model = lm(score ~ gender + fcollege + mcollege + home + urban +
+                           unemp + wage + distance + tuition + education +
+                           income + region + hispanic + afam + I(distance^2) +
+                           I(education^2) + gender:home + gender:urban + 
+                           gender:wage + gender:tuition + gender:education + 
+                           gender:region + gender:hispanic + gender:afam + 
+                           fcollege:income + mcollege:income + home:urban + 
+                           home:unemp + home:distance + home:tuition + 
+                           home:region + urban:unemp + unemp:hispanic + 
+                           wage:region + wage:afam + distance:hispanic + 
+                           distance:afam + tuition:region + education:region + 
+                           income:hispanic, data = collegedistance_cleaned)
+}
+```
+
+After performing this final step, we obtain the following test results:
+
+```{r}
+final_eval_data = evaluate("Final Model", final_model)
+print(final_eval_data)
+```
+
+We are left with a model with `RMSE` of **`r final_eval_data$rmse`** and `Adjusted R Squared` of **`r final_eval_data$adj_r2`**
 
 ## Model Results
+
+### Model Diagnostics
+
+We will now test the various diagnostics and assumptions of our final model
+
+The helper functions below will help us create the visuals we need:
+
+```{r}
+
+# create the fitted versus residuals scatter plot
+createFittedResidualsPlot = function(model) {
+  plot(fitted(model), resid(model), col = "grey", pch = 20,
+       xlab = "Fitted", ylab = "Residuals", 
+       main = "Fitted vs Residuals of Final Model")
+  abline(h = 0, col = "darkorange", lwd = 2)
+}
+
+# creates a histogram of residuals
+createResidualHistogram = function(model) {
+  hist(resid(model),
+     xlab   = "Residuals",
+     main   = "Histogram of Residuals for Final Model",
+     col    = "darkorange",
+     border = "dodgerblue",
+     breaks = 20)
+}
+
+# creates a Q-Q plot
+createQQPlot = function(model) {
+  qqnorm(resid(model), main = "Normal Q-Q Plot", col = "darkgrey", 
+         cex.main = 2, cex.axis = 2, cex.lab = 2)
+  qqline(resid(model), col = "dodgerblue", lwd = 2)
+}
+```
+
+First, we will take a look at the residuals of our model
+
+```{r fig.height = 5, fig.width = 15}
+par(mfrow = c(1, 2))
+createResidualHistogram(final_model)
+createFittedResidualsPlot(final_model)
+```
+
+Our residuals have a fairly normal distribution, and don't seem to have any general trend in the scatter plot
+
+We can double-check this with the Breusch-Pagan test
+
+```{r}
+# obtain our B-P test results
+final_bp = get_bp(final_model)
+print(final_bp)
+```
+
+Unforunately, when we run this test, we obtain a test statistic of **`r final_bp$stat`**, giving us a p-value of **`r final_bp$pvalue`**. It makes sense that we obtained visual results for homoscedasticity but statistical results for heterocedasticity, as we have shown that our data was difficult to predict with a model
+
+<br />
+
+Now we'll take a look at the Q-Q plot for our final model
+
+```{r fig.height = 10, fig.width = 15}
+createQQPlot(final_model)
+```
+
+We notice that visually, our Q-Q plot is slightly off and not perfectly fitting our data. We can verify that this assumption is indeed violated with the Shapiro-Wilks test
+
+```{r}
+final_shapiro = get_shapiro(final_model)
+print(final_shapiro)
+```
+
+This test gives us a test statistic of **`r final_shapiro$stat`** and thus a p-value of **`r final_shapiro$pvalue`**, meaning that we **reject** $H_0$. Hence, this assumption is violated
+
+<br />
+
+Finally, we'll look at the number of unusual points in our data
+
+```{r}
+final_unusual = getUnusualPoints(final_model)
+print(final_unusual)
+```
+
+Our data has **`r final_unusual$leverage`** points of high leverage, **`r final_unusual$residual`** points of with large residual, and **`r final_unusual$infleuntial`** influential points. Even with intensive data cleaning, these results prove our suspicions that the data selected is highly volatile
 
 ## Discussion
 

@@ -472,18 +472,43 @@ evaluate("Some interactions", distance_aic2)
 summary(distance_aic2)
 ```
 
-
+By looking at the parameters returned by backwards AIC, we can narrow them down to create a 'better' model.
 ```{r eval = FALSE}
 # ungodly model
-test_model3 = lm(score^0.75 ~ gender + fcollege + fcollege:mcollege + home + urban + wage + distance + I(distance^(0.25)) + tuition + education + income + hispanic + afam + I(distance^2) + I(tuition^2) + I(education^2) + gender:home + gender:wage + gender:education + gender:hispanic + gender:afam + fcollege:income + mcollege:income + home:urban + home:unemp + home:distance + unemp:distance + unemp:hispanic + wage:hispanic + wage:afam + distance:hispanic + distance:afam + tuition:education + income:hispanic + I(tuition^3) + log(tuition) + I(education^3)+ log(education) + I(tuition^0.25) + I(education^0.25) + I(wage^2) + gender:I(wage^2) + gender:I(log(wage)) + hispanic:I(wage^2) + hispanic:I(log(wage)) + home:I(unemp^2) + home:I(unemp^0.25) + home:I(log(unemp)) + home:I(distance^2) + home:I(distance^0.25) +  unemp:I(distance^2) + unemp:I(distance^0.25) + hispanic:I(distance^2) + hispanic:I(distance^0.25) + afam:I(distance^2) + afam:I(distance^0.25) + region, data = collegedistance)
+test_model3 = lm(score ~ gender + fcollege + fcollege:mcollege + home + urban + wage + distance + I(distance^(0.25)) + tuition + education + income + hispanic + afam + I(distance^2) + I(tuition^2) + I(education^2) + gender:home + gender:wage + gender:education + gender:hispanic + gender:afam + fcollege:income + mcollege:income + home:urban + home:unemp + home:distance + unemp:distance + unemp:hispanic + wage:hispanic + wage:afam + distance:hispanic + distance:afam + tuition:education + income:hispanic + I(tuition^3) + log(tuition) + I(education^3)+ log(education) + I(tuition^0.25) + I(education^0.25) + I(wage^2) + gender:I(wage^2) + gender:I(log(wage)) + hispanic:I(wage^2) + hispanic:I(log(wage)) + home:I(unemp^2) + home:I(unemp^0.25) + home:I(log(unemp)) + home:I(distance^2) + home:I(distance^0.25) +  unemp:I(distance^2) + unemp:I(distance^0.25) + hispanic:I(distance^2) + hispanic:I(distance^0.25) + afam:I(distance^2) + afam:I(distance^0.25) + region, data = collegedistance)
 
-summary(test_model3)$r.squared
-summary(test_model3)$adj.r.squared
+evaluate("Test Model 3", test_model3)
 ```
-
+By running this model through our quality criterion function, we see that our LOOCV-RMSE, adjusted $R^2$, AIC and BIC numbers have improved significantly. However, the assumption tests still fail.
 ```{r eval=FALSE}
 summary(test_model3)
 ```
+
+Finally, we will perform ANOVA tests on all three of our contenders to erase any doubt when choosing the best model to move forward with.
+```{r}
+anova(distance_aic, distance_aic2, test = "F")
+```
+
+- The null hypothesis: There is a small difference in RSS between the two models.
+- The test statistic: 5.8834
+- The distribution of the test statistic under the null hypothesis: F-Distribution with 5 and 4704 DF
+- The p-value: 1.993e-05
+- A decision: We reject the null hypothesis at $\alpha = 0.10$ 
+- Preferred model: 'distance_aic2'
+
+Now, let's compare 'distance_aic2' with 'test_model3'.
+```{r}
+anova(distance_aic2, test_model3, test = "F")
+```
+- The null hypothesis: There is a small difference in RSS between the two models.
+- The test statistic: 2.1876
+- The distribution of the test statistic under the null hypothesis: F-Distribution with 23 and 4658 DF
+- The p-value: 0.0008783
+- A decision: We reject the null hypothesis at $\alpha = 0.10$ 
+- Preferred model: 'test_model3'
+
+Great! We've confirmed that 'test_model3' is indeed the preferred model of all three, and now we will move on to finalizing the model.
+
 
 ### Finalizing the Model
 
@@ -527,7 +552,7 @@ We will repeat this process until the unusual points are minimized to a certain 
 
 ```{r}
 
-final_model = distance_aic2
+final_model = test_model3
 collegedistance_cleaned = collegedistance
 
 while(nrow(collegedistance_cleaned) > 2000) {
@@ -537,7 +562,7 @@ while(nrow(collegedistance_cleaned) > 2000) {
                          length(cooks.distance((final_model))))
   
   # calculate residual indexes
-  resid_indexes = which(abs(rstandard(final_model)) > 2)
+  lev_indexes = which(abs(rstandard(final_model)) > 2)
   
   # get all unique subset indexes
   subset_indexes = unique(c(infl_indexes, lev_indexes, resid_indexes))

@@ -16,6 +16,7 @@ The purpose of our project is to effectively predict the test scores of high sch
 
 Our ultimate goal for this project is to reason through the different predictor variables to find the model that can best predict high school test scores.
 
+<br />
 
 ## Dataset
 
@@ -60,9 +61,9 @@ This dataset has a total of 4739 observations of 15 variables (14 predictors and
 
 The dataset meets all of the set criteria for the project. Now lets look for missing values for our next step in data cleaning.
 
-## Data Cleaning
-
 <br />
+
+## Data Cleaning
 
 ### Loading in the Dataset
 
@@ -92,27 +93,33 @@ We also notice that many of our variables are factor variables, so we need to co
 - `income`: 1 for high, 0 for low
 - `region`: 1 for west, 0 for other
 
+We'll use a function called `cleanData()` to modularize our code
+
 ```{r}
-
-# convert the ethnicity label and remove the old one
-collegedistance$hispanic = 1 * (collegedistance$ethnicity == "hispanic")
-collegedistance$afam = 1 * (collegedistance$ethnicity == "afam")
-collegedistance = collegedistance[-1 * which(names(collegedistance) == "ethnicity")]
-
-# convert the rest of the labels with automation
-convert_labels = c(c("fcollege", "yes"), c("mcollege", "yes"), c("home", "yes"),
-                   c("urban", "yes"), c("income", "high"), c("region", "west"),
-                   c("gender", "male"))
-
-# loop through each label
-for (label_index in seq(1, length(convert_labels), 2)) {
+cleanData = function(data) {
+  # convert the ethnicity label and remove the old one
+  data$hispanic = 1 * (data$ethnicity == "hispanic")
+  data$afam = 1 * (data$ethnicity == "afam")
+  data = data[-1 * which(names(data) == "ethnicity")]
   
-  # get the column name and positive label name
-  col_name = convert_labels[label_index]
-  positive_label = convert_labels[label_index + 1]
-
-  # convert the label appropriately
-  collegedistance[col_name] = 1 * (collegedistance[col_name] == positive_label)
+  # convert the rest of the labels with automation
+  convert_labels = c(c("fcollege", "yes"), c("mcollege", "yes"), c("home", "yes"),
+                     c("urban", "yes"), c("income", "high"), c("region", "west"),
+                     c("gender", "male"))
+  
+  # loop through each label
+  for (label_index in seq(1, length(convert_labels), 2)) {
+    
+    # get the column name and positive label name
+    col_name = convert_labels[label_index]
+    positive_label = convert_labels[label_index + 1]
+  
+    # convert the label appropriately
+    data[col_name] = 1 * (data[col_name] == positive_label)
+  }
+  
+  # return the data
+  return(data)
 }
 
 ```
@@ -120,6 +127,7 @@ for (label_index in seq(1, length(convert_labels), 2)) {
 Now let's take a look at the data with our adjusted variables
 
 ```{r}
+collegedistance = cleanData(collegedistance)
 head(collegedistance)
 ```
 
@@ -221,6 +229,8 @@ colMeans(collegedistance)
 ```
 
 Since all of these `arithmetic means` look good (especially since none of the factor variables have a mean of 0 or 1), we can start to build our model
+
+<br />
 
 ## Method Exploration
 
@@ -334,6 +344,8 @@ evaluate = function(name, model, response_func = I, data = collegedistance) {
 }
 ```
 
+<br />
+
 ## Model Building + Testing
 
 ### Basic Model Building
@@ -399,17 +411,15 @@ distance_aic2 = step(distance_larger, direction = "backward", trace = 0)
 coef(distance_aic2)
 ```
 
-Now we'll take a look at our first AIC model
+Now we'll evaluate our first AIC model, which has **`r length(coef(distance_aic))`** coefficients
 
 ```{r}
-length(coef(distance_aic))
 evaluate("All Interactions", distance_aic)
 ```
 
-And our second AIC model
+And our second AIC model, which has **`r length(coef(distance_aic2))`** coefficients
 
 ```{r}
-length(coef(distance_aic2))
 evaluate("Some interactions", distance_aic2)
 ```
 
@@ -581,6 +591,8 @@ print(final_eval_data)
 
 We are left with a model with `RMSE` of **`r final_eval_data$rmse`** and `Adjusted R Squared` of **`r final_eval_data$adj_r2`**. Removing these volatile entries from our data set greatly increased the accuracy of our model
 
+<br />
+
 ## Model Results
 
 ### Model Diagnostics
@@ -663,7 +675,9 @@ final_unusual = getUnusualPoints(final_model)
 print(final_unusual)
 ```
 
-Our data has **`r final_unusual$leverage`** points of high leverage, **`r final_unusual$residual`** points of with large residual, and **`r final_unusual$infleuntial`** influential points. Even with intensive data cleaning, these results prove our suspicions that the data selected is highly volatile
+Our data has **`r final_unusual$leverage`** points of high leverage, **`r final_unusual$residual`** points of with large residual, and **`r final_unusual$influential`** influential points. Even with intensive data cleaning, these results prove our suspicions that the data selected is highly volatile
+
+<br />
 
 ## Discussion
 
@@ -685,7 +699,7 @@ The main purpose of this study was to see how different social and economic fact
 
 First we'll create the dataframe with the data we need
 
-```{r}
+```{r warning = FALSE}
 # initialize the dataframe
 coef_df = data.frame(matrix(ncol = length(names(collegedistance)) - 1, nrow = 1))
 score_index = which(names(collegedistance) == "score")
@@ -774,7 +788,79 @@ Overall, many of our results matched our predictions, but it was interesting to 
 
 ### Sample Predictions
 
+Now we can use our model to make some predictions
 
+<br />
+
+#### **Student 1 Prediction**
+
+Suppose we have a hispanic 12th grade male with a wage of $15.50. He lives in the suburbs with his college educated parents that make 120k annually and own their home which is 20 miles from M.I.T, a tuition valued at 2.5.
+
+```{r}
+# create the test data
+student1_data = data.frame(gender = "male", urban = "no", distance = 2, 
+                           tuition = 0.2, ethnicity = "hispanic", 
+                           unemp = 2.3, region = "other", wage = 11.50, 
+                           fcollege = "yes", mcollege = "yes", 
+                           income = "high", home = "yes", education = 12)
+student1_data = cleanData(student1_data)
+
+# make the prediction
+student1_pred = predict(final_model, newdata = student1_data)
+print(student1_pred)
+```
+
+Student 1 is predicted to have a test score of **`r student1_pred`**
+
+<br />
+
+#### **Student 2 Prediction**
+
+Let's test some of the other variables in the model with a different set of sample data.
+
+Suppose we have an African-American female who goes to school in an urban area in the west, with an unemployment rate of 20.3%. Her parents, neither of which went to college, make 20k a year and she's in 10th grade. The average wage of her hometown is 7.50 and tuition of the closest college of distance 0.2 is valued at 2
+
+```{r}
+# create the test data
+student2_data = data.frame(gender = "female", urban = "yes", distance = 0.2, 
+                           tuition = 2, ethnicity = "afam", 
+                           unemp = 20.3, region = "west", wage = 7.50, 
+                           fcollege = "no", mcollege = "no", 
+                           income = "low", home = "no", education = 10)
+student2_data = cleanData(student2_data)
+
+# make the prediction
+student2_pred = predict(final_model, newdata = student2_data)
+print(student2_pred)
+```
+
+Student 2 is predicted to have a test score of **`r student2_pred`**
+
+<br />
+
+#### **Visualization**
+
+Let's visualize where these students would be in the sample of all test scores
+
+```{r}
+hist(collegedistance$score,
+     breaks = 20,
+     main = "Score Distribution",
+     xlab = "Test Score",
+     col = "skyblue")
+
+legend("topleft", c("Student 1", "Student 2"), 
+       col = c("springgreen4", "firebrick"), lwd = 3)
+
+
+abline(v = student1_pred, col = "springgreen4", lwd = 3)
+abline(v = student2_pred, col = "firebrick", lwd = 3)
+
+```
+
+We outlined two very plausible scenarios, and it was interesting to see how those different parameters played out compared to the rest of the population of scores!
+
+<br />
 
 ## Appendix
 
@@ -875,6 +961,7 @@ createInteractionPlots("afam")
 This project was created as a final project for [STAT 420](http://daviddalpiaz.github.io/appliedstats/). We would like to give a special thank you to Professor David Unger and the STAT 420 grading team for making this semester possible, despite the challenges of being online
 
 **Authors**
+
 - Allison Zhang
 - Kobe Dela Cruz
 - Nishant Balepur

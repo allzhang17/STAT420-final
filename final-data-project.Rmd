@@ -523,6 +523,15 @@ We will repeat this process until the number of observations in our data set is 
 final_model = large_param_model
 collegedistance_cleaned = collegedistance
 
+collegedistance_cleaned$gender = as.numeric(collegedistance_cleaned$gender)
+collegedistance_cleaned$fcollege = as.numeric(collegedistance_cleaned$fcollege)
+collegedistance_cleaned$mcollege = as.numeric(collegedistance_cleaned$mcollege)
+collegedistance_cleaned$home = as.numeric(collegedistance_cleaned$home)
+collegedistance_cleaned$urban = as.numeric(collegedistance_cleaned$urban)
+collegedistance_cleaned$income = as.numeric(collegedistance_cleaned$income)
+collegedistance_cleaned$region = as.numeric(collegedistance_cleaned$region)
+
+
 while(nrow(collegedistance_cleaned) > 2000) {
   
   # calculate influence indexes
@@ -773,7 +782,33 @@ Overall, many of our results matched our predictions, but it was interesting to 
 <br />
 
 ### Sample Predictions
+Now we can test our model with some sample data and see how well we can predict score.
 
+Suppose we have a male, 12th grader with a wage of $8.50 who lives with his college educated parents that make 120k annually and own their home which is 20 miles from M.I.T. We'll look at a 95% confidence interval and 95% prediction interval for his predicted composite score.
+```{r}
+test_data = data.frame(gender = 1, urban = 0, distance = 2, tuition = 1.5, hispanic = 0, afam = 0, unemp = 2.3, region = 1, wage = 8.50, fcollege = 1, mcollege = 1, income = 1, home = 1, education = 12)
+
+predict( final_model, newdata = test_data, interval= "predict", level=0.95, type = "response")
+
+predict( final_model, newdata = test_data, interval= "predict", level=0.95)
+```
+
+Let's test some of the other variables in the model with a different set of sample data. Suppose we have an African-American female who goes to school in an urban area, with an unemployment rate of 7.3%. Her parents make 20k a year and she's in 10th grade.
+```{r}
+test_data2 = data.frame(gender = 0, afam = 1, urban = 1, unemp = 7.3, income = 0, education = 10)
+
+predict( final_model, newdata = test_data2, interval= "confidence", level=0.95)
+
+predict( final_model, newdata = test_data2, interval= "predict", level=0.95)
+```
+What if we looked at a hispanic, male student who lives 12 miles away from UCLA where the average state tuition is around $14,229. 
+```{r}
+test_data3 = data.frame( gender = 1, hispanic = 1, distance = 1.2, tuition = 14.229, region = 1 )
+
+predict( final_model, newdata = test_data3, interval= "confidence", level=0.95)
+
+predict( final_model, newdata = test_data3, interval= "predict", level=0.95)
+```
 
 
 ## Appendix
